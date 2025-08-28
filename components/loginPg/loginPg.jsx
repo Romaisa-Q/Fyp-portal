@@ -1,7 +1,7 @@
 import { Card, CardContent } from "../ui/card";
 import Image from "next/image"; 
-import { LoginHeader } from "./LoginHeader.jsx";
-import { LoginForm } from "./LoginForm.jsx";
+import { LoginHeader } from "./loginHeader.jsx";
+import { LoginForm } from "./loginForm.jsx";
 import { COLLEGE_COLORS } from "../constants/color";
 
 export default function LoginPage() {
