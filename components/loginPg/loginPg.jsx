@@ -1,3 +1,4 @@
+import { useRouter } from "next/router";
 import { Card, CardContent } from "../ui/card";
 import Image from "next/image"; 
 import { LoginHeader } from "./loginHeader.jsx";
@@ -5,12 +6,19 @@ import { LoginForm } from "./loginForm.jsx";
 import { COLLEGE_COLORS } from "../constants/color";
 
 export default function LoginPage() {
+  const router = useRouter();
+
   const handleLogin = (email, password, role) => {
     console.log("Login attempt:", { email, password, role });
-    // Here you would typically redirect to the appropriate dashboard based on role
-    // if (role === 'student') router.push('/student-dashboard')
-    // if (role === 'teacher') router.push('/teacher-dashboard')
-    // if (role === 'administrator') router.push('/admin-dashboard')
+
+    // Role-based navigation
+    if (role === "teacher") {
+      router.push("/dashboards/teacherDashboard");
+    } else if (role === "student") {
+      router.push("/dashboards/studentDashboard");
+    } else if (role === "administrator") {
+      router.push("/dashboards/adminDashboard");
+    }
   };
 
   return (
@@ -36,7 +44,7 @@ export default function LoginPage() {
       </Card>
 
       {/* Footer */}
-      <div className="absolute bottom-0  left-1/2 transform -translate-x-1/2 z-10">
+      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 z-10">
         <p
           className="text-sm text-center"
           style={{ color: COLLEGE_COLORS.lightGray }}
