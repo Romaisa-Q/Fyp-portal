@@ -5,16 +5,18 @@ import {
 import { COLLEGE_COLORS } from '../constants/color';
 
 const sidebarItems = [
-  { icon: BarChart3, label: 'Overview', active: true },
-  { icon: BookOpen, label: 'My Classes', hasSubmenu: true },
-  { icon: Users, label: 'Grading' },
-  { icon: Calendar, label: 'Attendance' },
-  { icon: FileText, label: 'Assignments' },
-  { icon: ClipboardCheck, label: 'Announcements' },
-  { icon: Calendar, label: 'Schedule' },
+  { key: 'overview', label: 'Overview', icon: BarChart3 },
+  { key: 'classList', label: 'Class List', icon: BookOpen },
+  { key: 'grading', label: 'Grading', icon: Users },
+  { key: 'attendance', label: 'Attendance', icon: Calendar },
+  { key: 'assignments', label: 'Assignments', icon: FileText },
+  { key: 'announcements', label: 'Announcements', icon: ClipboardCheck },
+  { key: 'schedule', label: 'Schedule', icon: Calendar },
 ];
 
-export default function Sidebar({ sidebarOpen, setSidebarOpen, onLogout }) {
+
+export default function Sidebar({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, onLogout = () => {} }) {
+
   return (
     <div
       className={`
@@ -54,27 +56,24 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, onLogout }) {
         {/* Navigation */}
         <nav className="flex-1 p-4">
           <ul className="space-y-2">
-            {sidebarItems.map((item, index) => (
-              <li key={index}>
-                <div
-                  className={`
-                    flex items-center space-x-3 px-4 py-3 rounded-lg cursor-pointer transition-colors
-                    ${item.active ? 'bg-green-600 text-white' : 'text-green-100 hover:bg-green-600 hover:text-white'}
-                  `}
-                >
-                  <item.icon className="w-5 h-5" />
-                  <span className="flex-1">{item.label}</span>
-                  {item.hasSubmenu && <ChevronDown className="w-4 h-4" />}
-                </div>
-                {item.hasSubmenu && item.active && (
-                  <ul className="ml-8 mt-2 space-y-1">
-                    <li className="px-3 py-2 text-sm text-green-200 hover:text-white cursor-pointer">• Class List</li>
-                    <li className="px-3 py-2 text-sm text-green-200 hover:text-white cursor-pointer">• Manage Classes</li>
-                  </ul>
-                )}
-              </li>
-            ))}
-          </ul>
+           {sidebarItems.map((item) => (
+  <li key={item.key}>
+    <div
+      onClick={() => {
+        setActiveTab(item.key);
+        setSidebarOpen(false); // mobile view me close bhi ho jaye
+      }}
+      className={`
+        flex items-center space-x-3 px-4 py-3 rounded-lg cursor-pointer transition-colors
+        ${activeTab === item.key ? 'bg-green-600 text-white' : 'text-green-100 hover:bg-green-600 hover:text-white'}
+      `}
+    >
+      <item.icon className="w-5 h-5" />
+      <span>{item.label}</span>
+    </div>
+  </li>
+))}
+ </ul>
         </nav>
 
         {/* Footer */}
