@@ -29,7 +29,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, activeTab, setAct
     >
       <div className="flex flex-col h-full" style={{ backgroundColor: COLLEGE_COLORS.darkGreen }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-green-600">
+        <div className="flex items-center justify-between p-6 border-b  border-white/10">
           <div className="flex items-center space-x-3">
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -46,7 +46,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, activeTab, setAct
           {/* Close button — mobile only */}
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-white hover:bg-green-600 p-1 rounded"
+            className="lg:hidden text-white hover:bg-white/5  p-1 rounded"
             aria-label="Close sidebar"
           >
             <X className="w-5 h-5" />
@@ -65,7 +65,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, activeTab, setAct
       }}
       className={`
         flex items-center space-x-3 px-4 py-3 rounded-lg cursor-pointer transition-colors
-        ${activeTab === item.key ? 'bg-green-600 text-white' : 'text-green-100 hover:bg-green-600 hover:text-white'}
+        ${activeTab === item.key ? 'bg-white/5  text-white' : 'text-green-100 hover:bg-white/5  hover:text-white'}
       `}
     >
       <item.icon className="w-5 h-5" />
@@ -77,10 +77,10 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, activeTab, setAct
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-green-600">
+        <div className="p-4 border-t  border-white/10">
           <div
             onClick={onLogout}
-            className="flex items-center space-x-3 px-4 py-3 rounded-lg text-green-100 hover:bg-green-600 hover:text-white cursor-pointer transition-colors"
+            className="flex items-center space-x-3 px-4 py-3 rounded-lg text-green-100 hover:bg-white/5  hover:text-white cursor-pointer transition-colors"
           >
             <LogOut className="w-5 h-5" />
             <span>Logout</span>

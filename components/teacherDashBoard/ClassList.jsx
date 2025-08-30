@@ -21,7 +21,7 @@ const initialClasses = [
   {
     id: 2,
     name: 'Database Systems',
-    semester:'3rd',
+    semester: '3rd',
     schedule: 'Tue, Thu - 11:00 AM',
     status: 'Active'
   },
@@ -51,7 +51,7 @@ export default function ClassList() {
 
   const filteredClasses = classes.filter(cls =>
     cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cls.code.toLowerCase().includes(searchTerm.toLowerCase())
+    (cls.code && cls.code.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleSearch = (value) => {
@@ -124,7 +124,7 @@ export default function ClassList() {
       {/* Classes Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredClasses.map((classItem) => (
-          <Card key={classItem.id} className="border-0 shadow-sm hover:shadow-md transition-shadow">
+          <Card key={classItem.id} className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -150,11 +150,11 @@ export default function ClassList() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Users className="w-4 h-4" />
-                  <span>{classItem.students} Students</span>
+                  <span>{classItem.students || 0} Students</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <MapPin className="w-4 h-4" />
-                  <span>{classItem.room}</span>
+                  <span>{classItem.room || 'N/A'}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Clock className="w-4 h-4" />
@@ -162,37 +162,27 @@ export default function ClassList() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleView(classItem.id)}
-                    className="flex items-center gap-1 text-xs border-gray-300 hover:bg-gray-50"
-                  >
-                    <Eye className="w-3 h-3" />
-                    View
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleEdit(classItem.id)}
-                    className="flex items-center gap-1 text-xs border-gray-300 hover:bg-gray-50"
-                  >
-                    <Edit className="w-3 h-3" />
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDelete(classItem.id)}
-                    className="flex items-center gap-1 text-xs border-red-300 text-red-600 hover:bg-red-50"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    Delete
-                  </Button>
-                </div>
+              {/* Action Buttons - Updated Design */}
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => handleView(classItem.id)}
+                  className="flex-1 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors flex items-center justify-center text-sm"
+                >
+                  <Eye className="w-4 h-4 mr-1" />
+                  View
+                </button>
+                <button
+                  onClick={() => handleEdit(classItem.id)}
+                  className="px-3 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <Edit className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleDelete(classItem.id)}
+                  className="px-3 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </CardContent>
           </Card>
@@ -223,3 +213,4 @@ export default function ClassList() {
     </div>
   );
 }
+
