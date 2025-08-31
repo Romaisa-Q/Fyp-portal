@@ -4,7 +4,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Eye, EyeOff, User, Lock, UserCheck } from 'lucide-react';
-import { COLLEGE_COLORS } from '../constants/color';
+import { COLLEGE_COLORS } from '../constants/colors';
 import { Button } from '../ui/button'; 
 
 

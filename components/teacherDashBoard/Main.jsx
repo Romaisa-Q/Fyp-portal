@@ -1,14 +1,15 @@
 // components/TeacherDashboard/Main.jsx
 import { useState, useEffect } from 'react';
-import Sidebar from './Sidebar';
-import Overview from './Oveview';
-import DashboardHeader from './DashboardHeader';
+import Sidebar from './Layout/Sidebar';
+import Overview from './Overview/Oveview';
+import DashboardHeader from './Layout/DashboardHeader';
 import { useRouter } from 'next/router';
-import ClassList from './ClassList';
+import Grading from './Grading/Grading';
+import ClassList from './MyClasses/ClassList';
 export default function Main() {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
+const [gradingSection, setGradingSection] = useState('grade-assignments');
   // Optional: Close on Escape key
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -30,32 +31,37 @@ export default function Main() {
         />
       )}
 
-    <Sidebar
+<Sidebar
   sidebarOpen={sidebarOpen}
   setSidebarOpen={setSidebarOpen}
   activeTab={activeTab}
   setActiveTab={setActiveTab}
-  onLogout={() => {
-          router.back();
-        }}
+  gradingSection={gradingSection}
+  setGradingSection={setGradingSection}
+  onLogout={() => router.back()} // ya jo logout logic tum chaho
 />
 
-
-      <div className="flex-1 flex flex-col overflow-hidden">
+  <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Navigation */}
     {/* Top Navigation */}
 <DashboardHeader setSidebarOpen={setSidebarOpen} />
 
 
         {/* Content */}
-       <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+       {/* <main className="flex-1 overflow-y-auto p-4 lg:p-6">
   {activeTab === 'overview' && <Overview />}
   {activeTab === 'classList' && <ClassList />}
-  {/* {activeTab === 'grading' && <Grading />}
-  {activeTab === 'attendance' && <Attendance />}
+   {activeTab === 'grading' && <Grading />}
+  {/* {activeTab === 'attendance' && <Attendance />}
   {activeTab === 'assignments' && <Assignments />}
   {activeTab === 'announcements' && <Announcements />}
-  {activeTab === 'schedule' && <Schedule />} */}
+  {activeTab === 'schedule' && <Schedule />} */} 
+  <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+  {activeTab === 'overview' && <Overview />}
+  {activeTab === 'classList' && <ClassList />}
+  {activeTab === 'grading' && (
+    <Grading defaultSection={gradingSection} />
+  )}
 </main>
 
       </div>

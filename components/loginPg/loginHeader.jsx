@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { CardHeader, CardTitle, CardDescription } from "../ui/card";
-import { COLLEGE_COLORS } from "../constants/color";
+import { COLLEGE_COLORS } from "../constants/colors";
 
 export function LoginHeader() {
   return (

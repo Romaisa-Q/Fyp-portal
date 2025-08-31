@@ -3,7 +3,7 @@ import { Card, CardContent } from "../ui/card";
 import Image from "next/image"; 
 import { LoginHeader } from "./loginHeader.jsx";
 import { LoginForm } from "./loginForm.jsx";
-import { COLLEGE_COLORS } from "../constants/color";
+import { COLLEGE_COLORS } from "../constants/colors";
 
 export default function LoginPage() {
   const router = useRouter();
