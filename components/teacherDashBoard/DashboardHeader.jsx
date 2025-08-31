@@ -1,7 +1,7 @@
 import { Menu, Bell, Search } from 'lucide-react';
 import { COLLEGE_COLORS } from '../constants/color';
 // import { Import } from 'lucide-react';
-export default function DashboardHeader() {
+export default function DashboardHeader({ setSidebarOpen }) {
   return (
       <header className="bg-white border-b px-4 lg:px-6 py-4">
           <div className="flex items-center justify-between">
