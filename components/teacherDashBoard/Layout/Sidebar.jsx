@@ -18,7 +18,16 @@ const sidebarItems = [
       { key: 'reports', label: 'Reports' }
     ]
   },
-  { key: 'attendance', label: 'Attendance', icon: Calendar },
+  {
+  key: 'attendance',
+  label: 'Attendance',
+  icon: Calendar,
+  hasSubmenu: true,
+  submenu: [
+    { key: 'mark', label: 'Mark Attendance' },
+    { key: 'reports', label: 'Reports' }
+  ]
+},
   { key: 'assignments', label: 'Assignments', icon: FileText },
   { key: 'announcements', label: 'Announcements', icon: ClipboardCheck },
   { key: 'schedule', label: 'Schedule', icon: Calendar },
@@ -31,8 +40,11 @@ export default function Sidebar({
   setActiveTab,
   gradingSection,
   setGradingSection,
+  attendanceSection,       
+  setAttendanceSection,     
   onLogout = () => {}
-}) {
+}) 
+ {
   const [openMenus, setOpenMenus] = useState({});
 
   const toggleMenu = (key) => {
@@ -99,29 +111,43 @@ export default function Sidebar({
               </div>
 
               {/* Submenu */}
-              {item.hasSubmenu && openMenus[item.key] && (
-                <ul className="ml-8 mt-2 space-y-1">
-                  {item.submenu.map((sub) => (
-                    <li
-                      key={sub.key}
-                      onClick={() => {
-                        setActiveTab('grading');
-                        setGradingSection(sub.key);
-                        setSidebarOpen(false);
-                      }}
-                      className={`
-                        px-3 py-2 text-sm rounded cursor-pointer
-                        ${gradingSection === sub.key && activeTab === 'grading'
-                          ? 'text-white'
-                          : 'text-green-200 hover:text-white hover:bg-white/5'}
-                      `}
-                      style={gradingSection === sub.key && activeTab === 'grading' ? { backgroundColor: COLLEGE_COLORS.lightGreen } : {}}
-                    >
-                      • {sub.label}
-                    </li>
-                  ))}
-                </ul>
-              )}
+           {item.hasSubmenu && openMenus[item.key] && (
+  <ul className="ml-8 mt-2 space-y-1">
+    {item.submenu.map((sub) => (
+      <li
+        key={sub.key}
+        onClick={() => {
+          if (item.key === 'grading') {
+            setActiveTab('grading');
+            setGradingSection(sub.key);
+          } else if (item.key === 'attendance') {
+            setActiveTab('attendance');
+            setAttendanceSection(sub.key); 
+          }
+          setSidebarOpen(false);
+        }}
+        className={`
+          px-3 py-2 text-sm rounded cursor-pointer
+          ${
+            (item.key === 'grading' && gradingSection === sub.key && activeTab === 'grading') ||
+            (item.key === 'attendance' && attendanceSection === sub.key && activeTab === 'attendance')
+              ? 'text-white'
+              : 'text-green-200 hover:text-white hover:bg-white/5'
+          }
+        `}
+        style={
+          (item.key === 'grading' && gradingSection === sub.key && activeTab === 'grading') ||
+          (item.key === 'attendance' && attendanceSection === sub.key && activeTab === 'attendance')
+            ? { backgroundColor: COLLEGE_COLORS.lightGreen }
+            : {}
+        }
+      >
+        • {sub.label}
+      </li>
+    ))}
+  </ul>
+)}
+
             </li>
           ))}
         </ul>

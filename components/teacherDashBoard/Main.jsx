@@ -2,15 +2,32 @@
 import { useState, useEffect } from 'react';
 import Sidebar from './Layout/Sidebar';
 import Overview from './Overview/Oveview';
-import DashboardHeader from './Layout/DashboardHeader';
+import DashboardHeader from './Layout/Header';
 import { useRouter } from 'next/router';
 import Grading from './Grading/Grading';
 import ClassList from './MyClasses/ClassList';
+import Attendance from './Attendance/Attendance';
 export default function Main() {
   const router = useRouter();
+  // 🔹 Logout handler
+  const handleLogout = () => {
+    try {
+      // Clear any stored auth/session data
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // Option 1: Go to login page
+      router.push('/login');
+      // router.back();
+
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
   const [sidebarOpen, setSidebarOpen] = useState(false);
 const [gradingSection, setGradingSection] = useState('grade-assignments');
-  // Optional: Close on Escape key
+const [attendanceSection, setAttendanceSection] = useState('mark');
+  // Close on Escape key
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key === 'Escape') setSidebarOpen(false);
@@ -38,14 +55,13 @@ const [gradingSection, setGradingSection] = useState('grade-assignments');
   setActiveTab={setActiveTab}
   gradingSection={gradingSection}
   setGradingSection={setGradingSection}
-  onLogout={() => router.back()} // ya jo logout logic tum chaho
+  attendanceSection={attendanceSection}
+  setAttendanceSection={setAttendanceSection} 
+  onLogout={handleLogout}
 />
-
   <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Navigation */}
-    {/* Top Navigation */}
 <DashboardHeader setSidebarOpen={setSidebarOpen} />
-
 
         {/* Content */}
        {/* <main className="flex-1 overflow-y-auto p-4 lg:p-6">
@@ -59,9 +75,8 @@ const [gradingSection, setGradingSection] = useState('grade-assignments');
   <main className="flex-1 overflow-y-auto p-4 lg:p-6">
   {activeTab === 'overview' && <Overview />}
   {activeTab === 'classList' && <ClassList />}
-  {activeTab === 'grading' && (
-    <Grading defaultSection={gradingSection} />
-  )}
+  {activeTab === 'grading' && (<Grading defaultSection={gradingSection} />  )}
+  {activeTab === 'attendance' && <Attendance defaultSection={attendanceSection} />}
 </main>
 
       </div>
