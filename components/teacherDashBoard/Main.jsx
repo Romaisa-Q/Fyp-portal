@@ -9,6 +9,7 @@ import ClassList from './MyClasses/ClassList';
 import Attendance from './Attendance/Attendance';
 export default function Main() {
   const router = useRouter();
+
   // 🔹 Logout handler
   const handleLogout = () => {
     try {
@@ -24,9 +25,11 @@ export default function Main() {
       console.error('Logout error:', error);
     }
   };
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
-const [gradingSection, setGradingSection] = useState('grade-assignments');
-const [attendanceSection, setAttendanceSection] = useState('mark');
+  const [gradingSection, setGradingSection] = useState('grade-assignments');
+  const [attendanceSection, setAttendanceSection] = useState('mark');
+
   // Close on Escape key
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -35,7 +38,9 @@ const [attendanceSection, setAttendanceSection] = useState('mark');
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, []);
-  const [activeTab, setActiveTab] = useState('overview'); // default tab
+
+  // ✅ Renamed state
+  const [activeSection, setActiveSection] = useState('overview'); // default section
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -48,38 +53,35 @@ const [attendanceSection, setAttendanceSection] = useState('mark');
         />
       )}
 
-<Sidebar
-  sidebarOpen={sidebarOpen}
-  setSidebarOpen={setSidebarOpen}
-  activeTab={activeTab}
-  setActiveTab={setActiveTab}
-  gradingSection={gradingSection}
-  setGradingSection={setGradingSection}
-  attendanceSection={attendanceSection}
-  setAttendanceSection={setAttendanceSection} 
-  onLogout={handleLogout}
-/>
-  <div className="flex-1 flex flex-col overflow-hidden">
+      <Sidebar
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        activeSection={activeSection}
+        setActiveSection={setActiveSection}
+        gradingSection={gradingSection}
+        setGradingSection={setGradingSection}
+        attendanceSection={attendanceSection}
+        setAttendanceSection={setAttendanceSection} 
+        onLogout={handleLogout}
+      />
+
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Navigation */}
-<DashboardHeader setSidebarOpen={setSidebarOpen} />
+        <DashboardHeader setSidebarOpen={setSidebarOpen} />
 
         {/* Content */}
-       {/* <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-  {activeTab === 'overview' && <Overview />}
-  {activeTab === 'classList' && <ClassList />}
-   {activeTab === 'grading' && <Grading />}
-  {/* {activeTab === 'attendance' && <Attendance />}
-  {activeTab === 'assignments' && <Assignments />}
-  {activeTab === 'announcements' && <Announcements />}
-  {activeTab === 'schedule' && <Schedule />} */} 
-  <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-  {activeTab === 'overview' && <Overview />}
-  {activeTab === 'classList' && <ClassList />}
-  {activeTab === 'grading' && (<Grading defaultSection={gradingSection} />  )}
-  {activeTab === 'attendance' && <Attendance defaultSection={attendanceSection} />}
-</main>
-
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+          {activeSection === 'overview' && <Overview />}
+          {activeSection === 'classList' && <ClassList />}
+          {activeSection === 'grading' && (
+            <Grading defaultSection={gradingSection} />
+          )}
+          {activeSection === 'attendance' && (
+            <Attendance defaultSection={attendanceSection} />
+          )}
+        </main>
       </div>
     </div>
   );
 }
+

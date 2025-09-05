@@ -1,81 +1,121 @@
 import { useState, useEffect } from 'react';
-import { Search, RefreshCw, Download, CheckCircle, XCircle } from 'lucide-react';
-import { COLLEGE_COLORS } from '../../constants/colors';
-import { Button } from '../../ui/button';
+import { Users, CheckCircle, XCircle, Search, BarChart3 } from 'lucide-react';
+import { COLLEGE_COLORS } from '../../constants/colors.js';
+import { Card, CardContent } from '../../ui/card.jsx';
 import { Input } from '../../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { toast } from 'sonner';
-import { attendanceManager } from '../../utils/attendanceStorage';
+import { attendanceManager } from '../../utils/attendanceStorage.js';
 
-// Period components
+// Import period components
 import DailyAttendance from './periods/DailyAttendance';
 import WeeklyAttendance from './periods/WeeklyAttendance';
 import MonthlyAttendance from './periods/MonthlyAttendance';
 import SemesterAttendance from './periods/SemesterAttendance';
 
-// Reports modal (shared)
-import AttendanceReports from './AttendanceReports';
-
-// ---------------- Helper Functions ----------------
-const getStatusColor = (status) => {
-  switch (status) {
-    case 'present':
-    case 'excellent':
-      return 'bg-green-100 text-green-800';
-    case 'absent':
-    case 'warning':
-      return 'bg-red-100 text-red-800';
-    case 'good':
-      return 'bg-yellow-100 text-yellow-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
-  }
+const fetchDailyAttendanceFromAPI = async () => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
+  // Mock API response - only daily data as specified
+  const dailyAPIData = [
+    { studentName: 'Ahmad Hassan', department: 'CS-3rd', subject: 'Database Systems', status: 'present', markedBy: 'student' },
+    { studentName: 'Fatima Khan', department: 'CS-3rd', subject: 'Database Systems', status: 'present', markedBy: 'student' },
+    { studentName: 'Ali Ahmed', department: 'CS-3rd', subject: 'Database Systems', status: 'absent', markedBy: 'student' },
+    { studentName: 'Ayesha Malik', department: 'IT-2nd', subject: 'Web Development', status: 'present', markedBy: 'student' },
+    { studentName: 'Hassan Ali', department: 'CS-2nd', subject: 'Data Structures', status: 'present', markedBy: 'student' },
+    { studentName: 'Zara Sheikh', department: 'IT-2nd', subject: 'Web Development', status: 'present', markedBy: 'student' },
+    { studentName: 'Omar Farooq', department: 'CS-3rd', subject: 'Database Systems', status: 'present', markedBy: 'student' },
+    { studentName: 'Sana Riaz', department: 'IT-2nd', subject: 'Web Development', status: 'absent', markedBy: 'student' },
+    { studentName: 'Muhammad Usman', department: 'CS-1st', subject: 'Programming Basics', status: 'present', markedBy: 'student' },
+    { studentName: 'Aisha Noor', department: 'IT-1st', subject: 'Computer Fundamentals', status: 'present', markedBy: 'student' },
+  ];
+  
+  return dailyAPIData;
 };
 
-const getStatusText = (status) => {
-  switch (status) {
-    case 'excellent':
-      return 'Excellent (90%+)';
-    case 'good':
-      return 'Good (80-89%)';
-    case 'warning':
-      return 'Need Attention (<80%)';
-    default:
-      return status.charAt(0).toUpperCase() + status.slice(1);
+// CSV export functions
+const generateCSV = (data, period) => {
+  if (data.length === 0) return '';
+  
+  let csvContent = '';
+  let headers = [];
+  
+  if (period === 'daily') {
+    headers = ['Student Name', 'Department', 'Subject', 'Date', 'Status', 'Marked By'];
+    csvContent = headers.join(',') + '\n';
+    data.forEach(record => {
+      const row = [
+        record.studentName,
+        record.department,
+        record.subject || '',
+        record.date,
+        record.status,
+        record.markedBy || 'teacher'
+      ];
+      csvContent += row.join(',') + '\n';
+    });
+  } else {
+    headers = ['Student Name', 'Department', 'Total Classes', 'Attended', 'Percentage', 'Status'];
+    csvContent = headers.join(',') + '\n';
+    data.forEach(record => {
+      const row = [
+        record.studentName,
+        record.department,
+        record.totalClasses,
+        record.attended,
+        record.percentage + '%',
+        record.status
+      ];
+      csvContent += row.join(',') + '\n';
+    });
   }
+  
+  return csvContent;
 };
 
-const getStatusIcon = (status) => {
-  switch (status) {
-    case 'present':
-      return <CheckCircle className="w-4 h-4 text-green-600" />;
-    case 'absent':
-      return <XCircle className="w-4 h-4 text-red-600" />;
-    default:
-      return null;
-  }
+const downloadCSV = (csvContent, filename) => {
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
 
-export default function MarkAttendance() {
-  const [activeTab, setActiveTab] = useState('daily');
+export default function MarkAttendance({
+  activeTab,
+  setActiveTab,
+  onFetchNewData,
+  onExport
+}) {
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
-  const [reportsOpen, setReportsOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState(null);
 
-  // Load data when tab or department changes
+  // Load data when tab changes
   useEffect(() => {
     loadAttendanceData();
   }, [activeTab, selectedDepartment]);
 
-  const loadAttendanceData = () => {
+  const loadAttendanceData = async () => {
     setLoading(true);
     try {
-      const data = attendanceManager.getFilteredData(activeTab, selectedDepartment);
-      setAttendanceData(data);
+      if (activeTab === 'daily') {
+        // For daily tab, we might fetch new data from API
+        // For now, just load existing daily data
+        const data = attendanceManager.getFilteredData('daily', selectedDepartment);
+        setAttendanceData(data);
+      } else {
+        // For weekly/monthly/semester, use calculated data
+        const data = attendanceManager.getFilteredData(activeTab, selectedDepartment);
+        setAttendanceData(data);
+      }
     } catch (error) {
       console.error('Error loading attendance data:', error);
       toast.error('Failed to load attendance data');
@@ -84,13 +124,15 @@ export default function MarkAttendance() {
     }
   };
 
+  // Fetch new daily data from API (simulate student marking attendance)
   const fetchNewDailyData = async () => {
     setLoading(true);
     try {
-      const apiData = await attendanceManager.fetchDailyFromAPI();
+      const apiData = await fetchDailyAttendanceFromAPI();
       const processedData = attendanceManager.processDailyAttendance(apiData);
       setAttendanceData(processedData);
       toast.success('Daily attendance data updated!');
+      onFetchNewData(); // Notify parent component
     } catch (error) {
       console.error('Error fetching daily data:', error);
       toast.error('Failed to fetch daily attendance');
@@ -99,49 +141,144 @@ export default function MarkAttendance() {
     }
   };
 
-  const handleEditStatus = (recordId, newStatus) => {
-    const record = attendanceData.find((r) => r.id === recordId);
-    if (record) {
-      const date = record.date || new Date().toISOString().split('T')[0];
-      attendanceManager.updateAttendanceStatus(date, record.studentName, record.department, newStatus);
-      loadAttendanceData();
-      setEditingRecord(null);
-      toast.success('Attendance updated successfully');
-    }
-  };
-
-  const handleExport = () => {
-    const csvContent = attendanceManager.generateCSV(attendanceData, activeTab);
-    const filename = `attendance_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`;
-    attendanceManager.downloadCSV(csvContent, filename);
-    toast.success(`Attendance data exported as ${filename}`);
-  };
-
   const filteredData = attendanceData.filter((record) =>
     record.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     record.department.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Get statistics using attendance manager
+  const stats = attendanceManager.getAttendanceStats(activeTab);
+
+  // Handle attendance editing (teacher control)
+  const handleEditStatus = (recordId, newStatus) => {
+    const record = attendanceData.find((r) => r.id === recordId);
+    if (record) {
+      const date = record.date || new Date().toISOString().split('T')[0];
+      attendanceManager.updateAttendanceStatus(date, record.studentName, record.department, newStatus);
+      // Refresh current view data
+      loadAttendanceData();
+      toast.success('Attendance updated successfully');
+    }
+  };
+
+  const handleExport = () => {
+    const csvContent = generateCSV(filteredData, activeTab);
+    const filename = `attendance_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`;
+    downloadCSV(csvContent, filename);
+    toast.success(`Attendance data exported successfully as ${filename}`);
+    onExport(); // Notify parent component
+  };
+
   return (
     <div className="space-y-6">
-      {/* Action buttons */}
-      <div className="flex items-center gap-2">
-        {activeTab === 'daily' && (
-          <Button variant="outline" onClick={fetchNewDailyData} disabled={loading}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Sync Daily Data
-          </Button>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {activeTab === 'daily' ? (
+          <>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Students</p>
+                    <p className="text-2xl font-semibold" style={{ color: COLLEGE_COLORS.darkGreen }}>
+                      {stats.total}
+                    </p>
+                  </div>
+                  <Users className="w-8 h-8 text-gray-400" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Present</p>
+                    <p className="text-2xl font-semibold text-green-600">{stats.present}</p>
+                  </div>
+                  <CheckCircle className="w-8 h-8 text-green-400" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Absent</p>
+                    <p className="text-2xl font-semibold text-red-600">{stats.absent}</p>
+                  </div>
+                  <XCircle className="w-8 h-8 text-red-400" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Attendance Rate</p>
+                    <p className="text-2xl font-semibold" style={{ color: COLLEGE_COLORS.lightGreen }}>
+                      {stats.percentage}%
+                    </p>
+                  </div>
+                  <BarChart3 className="w-8 h-8 text-blue-400" />
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          <>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Students</p>
+                    <p className="text-2xl font-semibold" style={{ color: COLLEGE_COLORS.darkGreen }}>
+                      {stats.totalStudents}
+                    </p>
+                  </div>
+                  <Users className="w-8 h-8 text-gray-400" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Average Attendance</p>
+                    <p className="text-2xl font-semibold" style={{ color: COLLEGE_COLORS.lightGreen }}>
+                      {stats.averageAttendance}%
+                    </p>
+                  </div>
+                  <BarChart3 className="w-8 h-8 text-blue-400" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Excellent (90%+)</p>
+                    <p className="text-2xl font-semibold text-green-600">{stats.excellent}</p>
+                  </div>
+                  <CheckCircle className="w-8 h-8 text-green-400" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Need Attention </p>
+                    <p className="text-2xl font-semibold text-red-600">{stats.warning}</p>
+                  </div>
+                  <XCircle className="w-8 h-8 text-red-400" />
+                </div>
+              </CardContent>
+            </Card>
+          </>
         )}
-        <Button variant="outline" onClick={handleExport} disabled={attendanceData.length === 0}>
-          <Download className="w-4 h-4 mr-2" />
-          Export CSV
-        </Button>
-        <Button variant="outline" onClick={() => setReportsOpen(true)}>
-          Reports
-        </Button>
       </div>
 
-      {/* Filters */}
+      {/* Filters and Search */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -166,7 +303,7 @@ export default function MarkAttendance() {
         </Select>
       </div>
 
-      {/* Tabs */}
+      {/* Attendance Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="daily">Daily</TabsTrigger>
@@ -175,54 +312,39 @@ export default function MarkAttendance() {
           <TabsTrigger value="semester">Semester</TabsTrigger>
         </TabsList>
 
-        {/* Period Components */}
-        <TabsContent value="daily">
-          <DailyAttendance
-            data={filteredData}
+        {/* Daily Attendance */}
+        <TabsContent value="daily" className="space-y-4">
+          <DailyAttendance 
+            attendanceData={filteredData}
             loading={loading}
-            editingRecord={editingRecord}
-            setEditingRecord={setEditingRecord}
-            handleEditStatus={handleEditStatus}
-            getStatusIcon={getStatusIcon}
-            getStatusColor={getStatusColor}
-            getStatusText={getStatusText}
+            onEditStatus={handleEditStatus}
           />
         </TabsContent>
-        <TabsContent value="weekly">
-          <WeeklyAttendance
-            data={filteredData}
+
+        {/* Weekly Attendance */}
+        <TabsContent value="weekly" className="space-y-4">
+          <WeeklyAttendance 
+            attendanceData={filteredData}
             loading={loading}
-            getStatusColor={getStatusColor}
-            getStatusText={getStatusText}
           />
         </TabsContent>
-        <TabsContent value="monthly">
-          <MonthlyAttendance
-            data={filteredData}
+
+        {/* Monthly Attendance */}
+        <TabsContent value="monthly" className="space-y-4">
+          <MonthlyAttendance 
+            attendanceData={filteredData}
             loading={loading}
-            getStatusColor={getStatusColor}
-            getStatusText={getStatusText}
           />
         </TabsContent>
-        <TabsContent value="semester">
-          <SemesterAttendance
-            data={filteredData}
+
+        {/* Semester Attendance */}
+        <TabsContent value="semester" className="space-y-4">
+          <SemesterAttendance 
+            attendanceData={filteredData}
             loading={loading}
-            getStatusColor={getStatusColor}
-            getStatusText={getStatusText}
           />
         </TabsContent>
       </Tabs>
-
-      {/* Reports Modal */}
-      {reportsOpen && (
-        <AttendanceReports
-          period={activeTab}
-          data={filteredData}
-          onClose={() => setReportsOpen(false)}
-        />
-      )}
     </div>
   );
 }
-

@@ -12,41 +12,41 @@ export class AttendanceManager {
     }
   }
   // AttendanceManager class ke andar add karo:
-async fetchDailyFromAPI() {
-  // ✅ Sirf browser me chale
-  if (typeof window === 'undefined') return [];
+// async fetchDailyFromAPI() {
+//   // ✅ Sirf browser me chale
+//   if (typeof window === 'undefined') return [];
 
-  try {
-    // Yahan tum apna real API endpoint call kar sakti ho
-    // Example dummy data:
-    return [
-      {
-        id: 1,
-        studentName: 'Ali Khan',
-        department: 'Computer Science',
-        subject: 'Math',
-        status: 'present',
-        markedBy: 'teacher'
-      },
-      {
-        id: 2,
-        studentName: 'Sara Ahmed',
-        department: 'Software Engineering',
-        subject: 'Physics',
-        status: 'absent',
-        markedBy: 'teacher'
-      }
-    ];
+//   try {
+//     // Yahan tum apna real API endpoint call kar sakti ho
+//     // Example dummy data:
+//     return [
+//       {
+//         id: 1,
+//         studentName: 'Ali Khan',
+//         department: 'Computer Science',
+//         subject: 'Math',
+//         status: 'present',
+//         markedBy: 'teacher'
+//       },
+//       {
+//         id: 2,
+//         studentName: 'Sara Ahmed',
+//         department: 'Software Engineering',
+//         subject: 'Physics',
+//         status: 'absent',
+//         markedBy: 'teacher'
+//       }
+//     ];
 
-    // Agar real API call karni ho:
-    // const res = await fetch('/api/attendance/daily');
-    // return await res.json();
+//     // Agar real API call karni ho:
+//     // const res = await fetch('/api/attendance/daily');
+//     // return await res.json();
 
-  } catch (error) {
-    console.error('Error fetching daily attendance from API:', error);
-    return [];
-  }
-}
+//   } catch (error) {
+//     console.error('Error fetching daily attendance from API:', error);
+//     return [];
+//   }
+// }
 
 
   initializeStorage() {
