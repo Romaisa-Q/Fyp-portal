@@ -18,8 +18,7 @@ export default function Main() {
       sessionStorage.clear();
 
       // Option 1: Go to login page
-      router.push('/login');
-      // router.back();
+      router.back();
 
     } catch (error) {
       console.error('Logout error:', error);
