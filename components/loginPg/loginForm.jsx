@@ -108,7 +108,7 @@ export function LoginForm({ onSubmit }) {
       </Button>
 
       {/* Register Link */}
-      <div className="text-center pt-4">
+      <div className="text-center ">
         <p className="text-sm" style={{ color: COLLEGE_COLORS.gray }}>
           Don't have an account?{' '}
           <a href="#" className="hover:underline" style={{ color: COLLEGE_COLORS.lightGreen }}>

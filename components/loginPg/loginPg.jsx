@@ -36,7 +36,7 @@ export default function LoginPage() {
       </div>
 
       {/* Login Card */}
-      <Card className="relative z-10 w-full max-w-md bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
+      <Card className="relative z-10  w-full max-w-md bg-white/90 backdrop-blur-sm border-0 shadow-2xl">
         <LoginHeader />
         <CardContent>
           <LoginForm onSubmit={handleLogin} />
@@ -44,14 +44,15 @@ export default function LoginPage() {
       </Card>
 
       {/* Footer */}
-      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 z-10">
-        <p
-          className="text-sm text-center"
-          style={{ color: COLLEGE_COLORS.lightGray }}
-        >
-          © 2025 College Portal. All rights reserved.
-        </p>
-      </div>
+     <div className="absolute bottom-20 sm:bottom-2 left-1/2 transform -translate-x-1/2 z-10">
+  <p
+    className="text-sm text-center"
+    style={{ color: COLLEGE_COLORS.lightGray }}
+  >
+    © 2025 College Portal. All rights reserved.
+  </p>
+</div>
+
     </div>
   );
 }
