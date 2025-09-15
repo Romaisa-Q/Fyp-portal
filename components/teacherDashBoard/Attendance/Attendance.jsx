@@ -1,158 +1,145 @@
+// src/pages/Attendance/Attendance.jsx
+// Root Attendance page — loads teacher classes (mock API), manages section (Mark / Reports)
+// and wires selectedClass into MarkAttendance and AttendanceReports components.
+
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { attendanceManager } from '../../utils/attendanceStorage.js';
-import AttendanceHeader from './../Attendance/AttendanceHeader';
-import MarkAttendance from './../Attendance/MarkAttendance';
-import AttendanceReports from './../Attendance/AttendanceReports.jsx';
+import * as mockApi from '../../utils/mockApi.js';
+import MarkAttendance from './MarkAttendance';
+import AttendanceReports from './AttendanceReports.jsx';
 import { ClipboardList, BarChart3, RefreshCw } from 'lucide-react';
 import { COLLEGE_COLORS } from '../../constants/colors.js';
 import { Button } from '../../ui/button';
 
-// Mock API function - simulates daily data from student dashboard
-const fetchDailyAttendanceFromAPI = async () => {
-  await new Promise(resolve => setTimeout(resolve, 800));
-  const dailyAPIData = [
-    { studentName: 'Ahmad Hassan', department: 'CS-3rd', subject: 'Database Systems', status: 'present', markedBy: 'student' },
-    { studentName: 'Fatima Khan', department: 'CS-3rd', subject: 'Database Systems', status: 'present', markedBy: 'student' },
-    { studentName: 'Ali Ahmed', department: 'CS-3rd', subject: 'Database Systems', status: 'absent', markedBy: 'student' },
-    { studentName: 'Ayesha Malik', department: 'IT-2nd', subject: 'Web Development', status: 'present', markedBy: 'student' },
-    { studentName: 'Hassan Ali', department: 'CS-2nd', subject: 'Data Structures', status: 'present', markedBy: 'student' },
-    { studentName: 'Zara Sheikh', department: 'IT-2nd', subject: 'Web Development', status: 'present', markedBy: 'student' },
-    { studentName: 'Omar Farooq', department: 'CS-3rd', subject: 'Database Systems', status: 'present', markedBy: 'student' },
-    { studentName: 'Sana Riaz', department: 'IT-2nd', subject: 'Web Development', status: 'absent', markedBy: 'student' },
-    { studentName: 'Muhammad Usman', department: 'CS-1st', subject: 'Programming Basics', status: 'present', markedBy: 'student' },
-    { studentName: 'Aisha Noor', department: 'IT-1st', subject: 'Computer Fundamentals', status: 'present', markedBy: 'student' },
-  ];
-  return dailyAPIData;
-};
-
-// CSV helpers (unchanged)
-const generateCSV = (data, period) => {
-  if (data.length === 0) return '';
-  let csvContent = '';
-  let headers = [];
-  if (period === 'daily') {
-    headers = ['Student Name', 'Department', 'Subject', 'Date', 'Status', 'Marked By'];
-    csvContent = headers.join(',') + '\n';
-    data.forEach(record => {
-      const row = [
-        record.studentName,
-        record.department,
-        record.subject || '',
-        record.date,
-        record.status,
-        record.markedBy || 'teacher'
-      ];
-      csvContent += row.join(',') + '\n';
-    });
-  } else {
-    headers = ['Student Name', 'Department', 'Total Classes', 'Attended', 'Percentage', 'Status'];
-    csvContent = headers.join(',') + '\n';
-    data.forEach(record => {
-      const row = [
-        record.studentName,
-        record.department,
-        record.totalClasses,
-        record.attended,
-        record.percentage + '%',
-        record.status
-      ];
-      csvContent += row.join(',') + '\n';
-    });
-  }
-  return csvContent;
-};
-
-const downloadCSV = (csvContent, filename) => {
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
-  link.setAttribute('href', url);
-  link.setAttribute('download', filename);
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
-
-// FIX: destructure props properly (onFetchNewData is optional function)
 export default function Attendance({ onFetchNewData = () => {} }) {
-  // Section state
-  const [activeSection, setActiveSection] = useState('mark');
-  // Attendance data states
-  const [activeTab, setActiveTab] = useState('daily');
+  const [activeSection, setActiveSection] = useState('mark'); // 'mark' | 'reports'
+  const [activeTab, setActiveTab] = useState('daily'); // 'daily' | 'weekly' | 'monthly' | 'semester'
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [selectedDepartment, setSelectedDepartment] = useState('all');
 
-  // Load data when tab or department changes
+  // classes (combined department + semester) loaded from mockApi
+  const [classes, setClasses] = useState([]); // [{ id: 'CS-1', name: 'CS 1' }, ...]
+  const [selectedClass, setSelectedClass] = useState('all'); // 'all' or classId
+
+  // Load available classes for the teacher (mock API)
+  useEffect(() => {
+    (async () => {
+      try {
+        const cls = await mockApi.getTeacherClasses();
+        setClasses(cls);
+      } catch (err) {
+        console.error('Failed to load classes from mock API', err);
+        toast.error('Failed to load classes');
+      }
+    })();
+  }, []);
+
+  // Load attendance data when activeTab or selectedClass changes
   useEffect(() => {
     loadAttendanceData();
-  }, [activeTab, selectedDepartment]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedClass]);
 
-  const loadAttendanceData = async () => {
-    setLoading(true);
-    try {
-      const data = attendanceManager.getFilteredData(activeTab === 'daily' ? 'daily' : activeTab, selectedDepartment);
-      setAttendanceData(data);
-    } catch (error) {
-      console.error('Error loading attendance data:', error);
-      toast.error('Failed to load attendance data');
-    } finally {
-      setLoading(false);
+const loadAttendanceData = async () => {
+  setLoading(true);
+  try {
+    const classId = (selectedClass === 'all' || !selectedClass) ? 'all' : selectedClass;
+
+    if (activeTab === 'daily') {
+      // always get UI-ready rows
+      let data = attendanceManager.getFilteredData('daily', classId);
+
+      // fallback if empty
+      if ((!Array.isArray(data) || data.length === 0) && classId !== 'all') {
+        const today = new Date().toISOString().split('T')[0];
+        const rec = attendanceManager.getDailyRecord(today, classId);
+        if (rec && Array.isArray(rec.data)) {
+          data = rec.data.map(s => ({
+            id: s.id,
+            studentName: s.studentName,
+            department: `${s.department}-${s.semester}`,
+            subject: s.subject || '',
+            status: s.present ? 'present' : 'absent',
+            markedBy: 'teacher',
+            date: rec.date
+          }));
+        }
+      }
+
+      setAttendanceData(Array.isArray(data) ? data : []);
+    } else {
+      // aggregated weekly/monthly/semester
+      const periodData = attendanceManager.getPeriodData(activeTab, classId);
+      setAttendanceData(Array.isArray(periodData) ? periodData : []);
     }
-  };
+  } catch (error) {
+    console.error('Error loading attendance data:', error);
+    toast.error('Failed to load attendance data');
+  } finally {
+    setLoading(false);
+  }
+};
 
-  // Fetch new daily data from API (simulate student marking attendance)
+  // Fetch daily attendance coming from student-side API (mock). This is optional and kept for compatibility.
   const fetchNewDailyData = async () => {
     setLoading(true);
     try {
-      const apiData = await fetchDailyAttendanceFromAPI();
+      const apiData = await mockApi.fetchDailyAttendanceFromStudentApi(); // dummy student-side API
       const processedData = attendanceManager.processDailyAttendance(apiData);
-      setAttendanceData(processedData);
-      toast.success('Daily attendance data updated!');
+      // processDailyAttendance returns the UI data for the first class; refresh view explicitly
+      await loadAttendanceData();
+      toast.success('Daily attendance data updated from student API!');
+      try {
+        if (typeof onFetchNewData === 'function') onFetchNewData();
+      } catch (err) {
+        console.warn('onFetchNewData threw error:', err);
+      }
+      return processedData;
     } catch (error) {
       console.error('Error fetching daily data:', error);
       toast.error('Failed to fetch daily attendance');
+      return null;
     } finally {
       setLoading(false);
     }
   };
 
-  // Wrapper so onClick always gets a function and parent is notified if provided
-  const handleSyncClick = async () => {
-    await fetchNewDailyData();
-    try {
-      if (typeof onFetchNewData === 'function') onFetchNewData();
-    } catch (err) {
-      console.warn('onFetchNewData threw error:', err);
-    }
-  };
+  // Provide stats for overview cards. For daily we pass classId, for other periods pass undefined (reports will handle).
+  const stats = attendanceManager.getAttendanceStats(activeTab, selectedClass === 'all' ? undefined : selectedClass);
 
-  // Get statistics
-  const stats = attendanceManager.getAttendanceStats(activeTab);
-
-  // Handle attendance editing (teacher control)
+  // Called by DailyAttendance child to update a single student's attendance
   const handleEditStatus = (recordId, newStatus) => {
+    // attendanceData items for daily include date property
     const record = attendanceData.find((r) => r.id === recordId);
     if (record) {
       const date = record.date || new Date().toISOString().split('T')[0];
-      attendanceManager.updateAttendanceStatus(date, record.studentName, record.department, newStatus);
+      // attendanceManager.updateAttendanceStatus(date, studentName, classId, newStatus)
+     attendanceManager.updateAttendanceStatus(date, record.id, selectedClass, newStatus);
+      // refresh view
       loadAttendanceData();
       toast.success('Attendance updated successfully');
+    } else {
+      // If record not found (edge case), try to update via saved daily record directly (no-op otherwise)
+      const today = new Date().toISOString().split('T')[0];
+      const success = attendanceManager.updateAttendanceStatus(today, recordId, selectedClass, newStatus);
+      if (success) {
+        loadAttendanceData();
+        toast.success('Attendance updated successfully');
+      } else {
+        console.warn('Could not find record to update:', recordId);
+      }
     }
   };
 
+  // Export handler - not implemented here (MarkAttendance handles export via prop)
   const handleExport = () => {
-    const csvContent = generateCSV(attendanceData, activeTab);
-    const filename = `attendance_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`;
-    downloadCSV(csvContent, filename);
-    toast.success(`Attendance data exported successfully as ${filename}`);
+    // intentionally left blank; MarkAttendance has export capability
   };
 
   return (
     <div className="space-y-6">
-      {/* Header with section navigation */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold" style={{ color: COLLEGE_COLORS.darkGreen }}>
@@ -163,12 +150,11 @@ export default function Attendance({ onFetchNewData = () => {} }) {
           </p>
         </div>
 
-        {/* Section Navigation */}
+        {/* Section navigation + quick actions */}
         <div className="flex items-center gap-2">
           <Button
             variant={activeSection === 'mark' ? 'default' : 'outline'}
-            className={`flex items-center gap-2 ${activeSection === 'mark' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
-            style={activeSection === 'mark' ? { backgroundColor: COLLEGE_COLORS.darkGreen } : {}}
+            className="flex items-center gap-2"
             onClick={() => setActiveSection('mark')}
           >
             <ClipboardList className="w-4 h-4" />
@@ -177,8 +163,7 @@ export default function Attendance({ onFetchNewData = () => {} }) {
 
           <Button
             variant={activeSection === 'reports' ? 'default' : 'outline'}
-            className={`flex items-center gap-2 ${activeSection === 'reports' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
-            style={activeSection === 'reports' ? { backgroundColor: COLLEGE_COLORS.darkGreen } : {}}
+            className="flex items-center gap-2"
             onClick={() => setActiveSection('reports')}
           >
             <BarChart3 className="w-4 h-4" />
@@ -189,7 +174,7 @@ export default function Attendance({ onFetchNewData = () => {} }) {
             <Button
               variant="outline"
               className="flex items-center gap-2"
-              onClick={handleSyncClick}   // <-- ALWAYS a function
+              onClick={fetchNewDailyData}
               disabled={loading}
             >
               <RefreshCw className="w-4 h-4" />
@@ -199,15 +184,16 @@ export default function Attendance({ onFetchNewData = () => {} }) {
         </div>
       </div>
 
-      {/* Section Content */}
+      {/* Section content */}
       {activeSection === 'mark' && (
         <MarkAttendance
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           attendanceData={attendanceData}
           loading={loading}
-          selectedDepartment={selectedDepartment}
-          setSelectedDepartment={setSelectedDepartment}
+          selectedClass={selectedClass}
+          setSelectedClass={setSelectedClass}
+          classes={classes}
           onEditStatus={handleEditStatus}
           onFetchNewData={fetchNewDailyData}
           onExport={handleExport}
@@ -226,3 +212,4 @@ export default function Attendance({ onFetchNewData = () => {} }) {
     </div>
   );
 }
+

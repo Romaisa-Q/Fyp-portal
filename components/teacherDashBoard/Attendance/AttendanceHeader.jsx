@@ -1,63 +1,91 @@
+// src/components/AttendanceHeader.jsx
+// (Place/update this file where your project expects the AttendanceHeader component)
+
 import { RefreshCw, Download, BarChart3 } from 'lucide-react';
 import { COLLEGE_COLORS } from '../../constants/colors.js';
 import { Button } from '../../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line
+} from 'recharts';
 
-export default function AttendanceHeader({ 
-  activeTab = 'daily', 
-  loading = false, 
-  attendanceData = [], 
-  onFetchNewData = () => {}, 
-  onExport = () => {}, 
-  reportsOpen = false, 
+export default function AttendanceHeader({
+  activeTab = 'daily',
+  loading = false,
+  attendanceData = [],
+  onFetchNewData = () => {},
+  onExport = () => {},
+  reportsOpen = false,
   setReportsOpen = () => {},
   stats = {},
-  selectedDepartment = 'all'
+  selectedClass = 'all' // renamed from selectedDepartment -> selectedClass
 }) {
+  const safeAttendanceData = Array.isArray(attendanceData) ? attendanceData : [];
+
   const getReportsData = () => {
     const chartData = [];
     const pieData = [];
     const trendData = [];
 
-    // Ensure attendanceData is an array and handle undefined/null cases
-    const safeAttendanceData = Array.isArray(attendanceData) ? attendanceData : [];
-
     if (activeTab === 'daily') {
       const statusCounts = {
         present: safeAttendanceData.filter((r) => r && r.status === 'present').length,
-        absent: safeAttendanceData.filter((r) => r && r.status === 'absent').length,
+        absent: safeAttendanceData.filter((r) => r && r.status === 'absent').length
       };
 
       chartData.push({ name: 'Present', count: statusCounts.present, color: '#22c55e' });
       chartData.push({ name: 'Absent', count: statusCounts.absent, color: '#ef4444' });
-      
+
       pieData.push({ name: 'Present', value: statusCounts.present, fill: '#22c55e' });
       pieData.push({ name: 'Absent', value: statusCounts.absent, fill: '#ef4444' });
 
-      // Generate trend data for last 5 days
+      // Simple mocked trend for last 5 days (replace with real data later)
       const today = new Date();
       for (let i = 4; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(today.getDate() - i);
         trendData.push({
           day: date.toLocaleDateString('en-US', { weekday: 'short' }),
-          attendance: Math.floor(Math.random() * 20) + 80 // Mock data
+          attendance: Math.max(0, Math.min(100, (stats.percentage || 80) + Math.floor((Math.random() - 0.5) * 6)))
         });
       }
     } else {
-      const excellentCount = safeAttendanceData.filter((r) => r && r.status === 'excellent').length;
-      const goodCount = safeAttendanceData.filter((r) => r && r.status === 'good').length;
-      const warningCount = safeAttendanceData.filter((r) => r && r.status === 'warning').length;
+      // For non-daily (weekly/monthly/semester) try to use status categories in attendanceData,
+      // otherwise fallback to stats numbers.
+      const excellentCount = safeAttendanceData.filter((r) => r && r.status === 'excellent').length || (stats.excellent || 0);
+      const goodCount = safeAttendanceData.filter((r) => r && r.status === 'good').length || (stats.good || 0);
+      const warningCount = safeAttendanceData.filter((r) => r && r.status === 'warning').length || (stats.warning || 0);
 
       chartData.push({ name: 'Excellent (90%+)', count: excellentCount, color: '#22c55e' });
-      chartData.push({ name: 'Good (80-89%)', count: goodCount, color: '#f59e0b' });
-      chartData.push({ name: 'Need Attention (<80%)', count: warningCount, color: '#ef4444' });
+      chartData.push({ name: 'Good (75-89%)', count: goodCount, color: '#f59e0b' });
+      chartData.push({ name: 'Need Attention (<75%)', count: warningCount, color: '#ef4444' });
 
       pieData.push({ name: 'Excellent', value: excellentCount, fill: '#22c55e' });
       pieData.push({ name: 'Good', value: goodCount, fill: '#f59e0b' });
       pieData.push({ name: 'Warning', value: warningCount, fill: '#ef4444' });
+
+      // Trend: mock around averageAttendance when available
+      const baseline = stats.averageAttendance || 70;
+      for (let i = 4; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        trendData.push({
+          day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+          attendance: Math.max(0, Math.min(100, baseline + Math.floor((Math.random() - 0.5) * 8)))
+        });
+      }
     }
 
     return { chartData, pieData, trendData };
@@ -75,30 +103,30 @@ export default function AttendanceHeader({
           Track and manage student attendance with automatic calculation & teacher control
         </p>
       </div>
-      
+
       <div className="flex items-center gap-2">
         {activeTab === 'daily' && (
-          <Button 
-            variant="outline" 
-            className="flex items-center gap-2" 
-            onClick={onFetchNewData} 
+          <Button
+            variant="outline"
+            className="flex items-center gap-2"
+            onClick={onFetchNewData}
             disabled={loading}
           >
             <RefreshCw className="w-4 h-4" />
             Sync Daily Data
           </Button>
         )}
-        
-        <Button 
-          variant="outline" 
-          className="flex items-center gap-2" 
-          onClick={onExport} 
+
+        <Button
+          variant="outline"
+          className="flex items-center gap-2"
+          onClick={onExport}
           disabled={!Array.isArray(attendanceData) || attendanceData.length === 0}
         >
           <Download className="w-4 h-4" />
           Export CSV
         </Button>
-        
+
         <Dialog open={reportsOpen} onOpenChange={setReportsOpen}>
           <DialogTrigger asChild>
             <Button variant="outline" className="flex items-center gap-2">
@@ -106,7 +134,7 @@ export default function AttendanceHeader({
               Reports
             </Button>
           </DialogTrigger>
-          
+
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -114,7 +142,7 @@ export default function AttendanceHeader({
                 Attendance Reports - {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} View
               </DialogTitle>
             </DialogHeader>
-            
+
             <div className="space-y-6 mt-4">
               {/* Summary Stats */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -126,7 +154,7 @@ export default function AttendanceHeader({
                     <div className="text-sm text-gray-600 mt-1">Total Records</div>
                   </CardContent>
                 </Card>
-                
+
                 <Card>
                   <CardContent className="p-4 text-center">
                     <div className="text-2xl font-semibold text-green-600">
@@ -137,11 +165,11 @@ export default function AttendanceHeader({
                     </div>
                   </CardContent>
                 </Card>
-                
+
                 <Card>
                   <CardContent className="p-4 text-center">
                     <div className="text-2xl font-semibold text-blue-600">
-                      {selectedDepartment === 'all' ? 'All Departments' : selectedDepartment.toUpperCase()}
+                      {selectedClass === 'all' ? 'All Classes' : selectedClass}
                     </div>
                     <div className="text-sm text-gray-600 mt-1">Filter Applied</div>
                   </CardContent>
@@ -187,11 +215,10 @@ export default function AttendanceHeader({
                           labelLine={false}
                           label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                           outerRadius={80}
-                          fill="#8884d8"
                           dataKey="value"
                         >
                           {pieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                            <Cell key={`pcell-${index}`} fill={entry.fill} />
                           ))}
                         </Pie>
                         <Tooltip />
@@ -232,9 +259,9 @@ export default function AttendanceHeader({
                 <Button variant="outline" onClick={() => setReportsOpen(false)}>
                   Close
                 </Button>
-                <Button 
-                  onClick={onExport} 
-                  className="text-white" 
+                <Button
+                  onClick={onExport}
+                  className="text-white"
                   style={{ backgroundColor: COLLEGE_COLORS.darkGreen }}
                 >
                   <Download className="w-4 h-4 mr-2" />

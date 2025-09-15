@@ -1,355 +1,376 @@
-// Attendance Data Management System
-// Handles daily API data and calculates weekly, monthly, semester statistics
+// src/utils/attendanceStorage.js
+const RECORDS_KEY = 'attendance_records'; // array of { date, classId, data: [ { id, studentName, department, semester, present } ] }
+const REPORTS_KEY = 'attendance_data'; // aggregated reports object (daily, students)
+const readJson = (key, fallback) => {
+  try {
+    return JSON.parse(localStorage.getItem(key) || 'null') || fallback;
+  } catch (e) {
+    return fallback;
+  }
+};
 
-export class AttendanceManager {
-  constructor() {
-    this.storageKey = 'attendance_data';
-    this.semesterKey = 'semester_config';
+const writeJson = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+const normalizeClassKey = (str = '') => {
+  if (!str) return '';
+  const s = String(str).trim();
+  const m = s.match(/^([A-Za-z]+)[\s-_]?(\d+)/);
+  if (m) return `${m[1]}-${m[2]}`;
+  return s;
+};
 
-    // ✅ Only initialize in browser
-    if (typeof window !== 'undefined') {
-      this.initializeStorage();
+const makeStudentId = (classId, studentName) => {
+  const nameSafe = (studentName || '').trim().replace(/\s+/g, '_');
+  return `${classId}-${nameSafe}`;
+};
+
+const attendanceManager = {
+  saveDailyRecord(date, classId, studentsArray) {
+    const records = readJson(RECORDS_KEY, []);
+    const normalizedClassId = normalizeClassKey(classId || '');
+    const record = {
+      date,
+      classId: normalizedClassId,
+      data: (studentsArray || []).map(s => ({
+        id: s.id || makeStudentId(normalizedClassId, s.studentName),
+        studentName: s.studentName,
+        department: s.department || (normalizedClassId.split('-')[0] || ''),
+        semester: s.semester || (normalizedClassId.split('-')[1] || ''),
+        present: !!s.present
+      }))
+    };
+
+    const idx = records.findIndex(r => r.date === date && normalizeClassKey(r.classId) === normalizedClassId);
+    if (idx >= 0) records[idx] = record;
+    else records.push(record);
+
+    writeJson(RECORDS_KEY, records);
+
+    // update reports
+    this._syncRecordsToReports(records);
+    return record;
+  },
+
+  // Return a saved daily record for date+classId
+  getDailyRecord(date, classId) {
+    const records = readJson(RECORDS_KEY, []);
+    const normalizedClassId = normalizeClassKey(classId || '');
+    return records.find(r => r.date === date && normalizeClassKey(r.classId) === normalizedClassId) || null;
+  },
+
+  // Returns filtered data for UI. For daily: returns today's record for classId mapped to UI format.
+  // For other periods: returns result of getPeriodData
+  getFilteredData(period, classId = 'all') {
+    if (period === 'daily') {
+      const today = new Date().toISOString().split('T')[0];
+      if (classId === 'all') return []; // daily UI expects a specific class
+      const rec = this.getDailyRecord(today, classId);
+      if (!rec) return [];
+      return rec.data.map(s => ({
+        id: s.id,
+        studentName: s.studentName,
+        department: `${s.department}-${s.semester}`,
+        subject: s.subject || '',
+        status: s.present ? 'present' : 'absent',
+        markedBy: 'teacher',
+        date: rec.date
+      }));
     }
-  }
-  // AttendanceManager class ke andar add karo:
-// async fetchDailyFromAPI() {
-//   // ✅ Sirf browser me chale
-//   if (typeof window === 'undefined') return [];
 
-//   try {
-//     // Yahan tum apna real API endpoint call kar sakti ho
-//     // Example dummy data:
-//     return [
-//       {
-//         id: 1,
-//         studentName: 'Ali Khan',
-//         department: 'Computer Science',
-//         subject: 'Math',
-//         status: 'present',
-//         markedBy: 'teacher'
-//       },
-//       {
-//         id: 2,
-//         studentName: 'Sara Ahmed',
-//         department: 'Software Engineering',
-//         subject: 'Physics',
-//         status: 'absent',
-//         markedBy: 'teacher'
-//       }
-//     ];
-
-//     // Agar real API call karni ho:
-//     // const res = await fetch('/api/attendance/daily');
-//     // return await res.json();
-
-//   } catch (error) {
-//     console.error('Error fetching daily attendance from API:', error);
-//     return [];
-//   }
-// }
+    // For weekly/monthly/semester, delegate to getPeriodData which returns UI-ready aggregated rows
+    return this.getPeriodData(period, classId);
+  },
 
 
-  initializeStorage() {
-    if (typeof window === 'undefined') return;
+  updateAttendanceStatus(date, idOrStudentIdOrName, classId, newStatus) {
+    const records = readJson(RECORDS_KEY, []);
+    const normalizedClassId = normalizeClassKey(classId || '');
 
-    if (!localStorage.getItem(this.storageKey)) {
-      const initialData = {
-        daily: {},
-        students: {},
-        semester: {
-          startDate: new Date().toISOString().split('T')[0],
-          endDate: this.calculateSemesterEnd(),
-          totalWeeks: 20,
-          currentWeek: 1
-        }
-      };
-      localStorage.setItem(this.storageKey, JSON.stringify(initialData));
-    }
-  }
+    const recIdx = records.findIndex(r => r.date === date && normalizeClassKey(r.classId) === normalizedClassId);
+    if (recIdx < 0) return false;
+    const rec = records[recIdx];
 
-  calculateSemesterEnd() {
-    const start = new Date();
-    start.setMonth(start.getMonth() + 4);
-    return start.toISOString().split('T')[0];
-  }
+    // try to find by id first, then by studentName fallback
+    const sIdx = rec.data.findIndex(s =>
+      s.id === idOrStudentIdOrName ||
+      s.studentName === idOrStudentIdOrName ||
+      makeStudentId(normalizedClassId, s.studentName) === idOrStudentIdOrName
+    );
+    if (sIdx < 0) return false;
 
-  getData() {
-    if (typeof window === 'undefined') return { daily: {}, students: {} };
-    return JSON.parse(localStorage.getItem(this.storageKey) || '{}');
-  }
+    rec.data[sIdx].present = newStatus === 'present';
+    records[recIdx] = rec;
+    writeJson(RECORDS_KEY, records);
 
-  saveData(data) {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(this.storageKey, JSON.stringify(data));
-  }
+    // sync to reports storage
+    this._syncRecordsToReports(records);
+    return true;
+  },
 
-  processDailyAttendance(apiData) {
-    if (typeof window === 'undefined') return [];
-    const data = this.getData();
+  // Convert student-side API payload to internal daily records and save
+  // Accepts an array of items like { studentName, department, subject, status, markedBy }
+  // Groups by classId derived from department+semester pattern and writes saveDailyRecord for each class.
+  processDailyAttendance(apiArray = []) {
+    if (!Array.isArray(apiArray) || apiArray.length === 0) return [];
+
     const today = new Date().toISOString().split('T')[0];
 
-    data.daily[today] = apiData.map(record => ({
-      id: record.id || Date.now() + Math.random(),
-      studentName: record.studentName,
-      department: record.department,
-      subject: record.subject,
-      status: record.status,
-      date: today,
-      markedBy: record.markedBy || 'student'
-    }));
+    // Build grouped map: classId -> [student objects]
+    const groups = {};
+    apiArray.forEach(item => {
+      // try to parse `department` like 'CS-3rd' or 'CS-1'
+      const deptRaw = item.department || '';
+      let classId = normalizeClassKey(deptRaw);
+      if (!classId) {
+        // fallback: if department provided separately
+        const dep = item.department || 'GEN';
+        const sem = item.semester || '1';
+        classId = `${dep}-${sem}`;
+      }
+      if (!groups[classId]) groups[classId] = [];
+      groups[classId].push({
+        id: makeStudentId(classId, item.studentName),
+        studentName: item.studentName,
+        department: (item.department || classId.split('-')[0]),
+        semester: item.semester || classId.split('-')[1] || '',
+        present: (String(item.status || '').toLowerCase() === 'present') || (item.present === true)
+      });
+    });
 
-    apiData.forEach(record => {
-      const studentKey = `${record.studentName}_${record.department}`;
-      if (!data.students[studentKey]) {
-        data.students[studentKey] = {
-          studentName: record.studentName,
-          department: record.department,
-          attendanceHistory: {},
-          totalDays: 0,
-          presentDays: 0,
-          semesterPercentage: 0
+    // Save each class record
+    const saved = [];
+    Object.keys(groups).forEach(classId => {
+      const rec = this.saveDailyRecord(today, classId, groups[classId]);
+      saved.push(rec);
+    });
+
+    return saved;
+  },
+
+  // Internal: sync records array -> reports object { daily: { date: [entries...] }, students: { id: {...} } }
+  _syncRecordsToReports(records) {
+    // Start from existing aggregated data so we preserve history
+    const reports = readJson(REPORTS_KEY, { daily: {}, students: {} });
+    // Ensure shapes
+    reports.daily = reports.daily || {};
+    reports.students = reports.students || {};
+
+    // Rebuild daily and students from full records list (we prefer authoritative source = records)
+    // Clear and rebuild for simplicity
+    const daily = {};
+    const students = {}; // keyed by id
+
+    (records || []).forEach(rec => {
+      const date = rec.date;
+      const classId = normalizeClassKey(rec.classId || '');
+      if (!daily[date]) daily[date] = [];
+      (rec.data || []).forEach(s => {
+        const id = s.id || makeStudentId(classId, s.studentName);
+        const department = s.department || (classId.split('-')[0] || '');
+        const semester = s.semester || (classId.split('-')[1] || '');
+        const status = s.present ? 'present' : 'absent';
+
+        // daily entry
+        daily[date].push({
+          id,
+          studentName: s.studentName,
+          department: `${department}-${semester}`,
+          status,
+          date,
+          classId // include normalized classId
+        });
+
+        // student historical entry
+        if (!students[id]) {
+          students[id] = {
+            id,
+            studentName: s.studentName,
+            department,
+            semester,
+            attendance: {}
+          };
+        }
+        students[id].attendance[date] = status;
+      });
+    });
+
+    reports.daily = daily;
+    reports.students = students;
+
+    writeJson(REPORTS_KEY, reports);
+    return reports;
+  },
+
+  // Returns aggregated rows for weekly/monthly/semester in the expected UI shape:
+  // { studentName, department, semester, totalClasses, attended, percentage, status }
+  
+// Paste this inside attendanceManager, replacing the previous getPeriodData
+// Simplified: semester-only aggregation
+getPeriodData(period, classId = 'all') {
+  const reports = readJson(REPORTS_KEY, { daily: {}, students: {}, semester: {} });
+  const daily = reports.daily || {};
+  const students = reports.students || {};
+
+  const toYMD = (d) => {
+    const dt = new Date(d);
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  // Determine semester start date (prefer reports.semester.startDate)
+  let startDate;
+  if (reports.semester && reports.semester.startDate) {
+    startDate = new Date(reports.semester.startDate);
+  } else {
+    // fallback to earliest daily entry date if available
+    const dailyKeys = Object.keys(daily).sort();
+    if (dailyKeys.length > 0) {
+      startDate = new Date(dailyKeys[0].split('T')[0]);
+    } else {
+      // last-resort fallback ~120 days ago
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 120);
+    }
+  }
+
+  const today = new Date();
+  const todayYMD = toYMD(today);
+
+  // Build list of YMD dates from startDate -> today (inclusive)
+  const periodDates = [];
+  for (let d = new Date(startDate); toYMD(d) <= todayYMD; d.setDate(d.getDate() + 1)) {
+    periodDates.push(toYMD(d));
+  }
+  const totalClassDays = periodDates.length;
+
+  const normalizedClassId = normalizeClassKey(classId || '');
+
+  // Collect student ids from daily entries in this period OR from reports.students for this class
+  const studentIds = new Set();
+
+  // from daily entries in period
+  periodDates.forEach(dateStr => {
+    const entries = Array.isArray(daily[dateStr]) ? daily[dateStr] : [];
+    entries.forEach(e => {
+      const eClass = normalizeClassKey(e.classId || (e.department || ''));
+      if (classId !== 'all' && eClass !== normalizedClassId) return;
+      if (e.id) studentIds.add(e.id);
+      else studentIds.add(makeStudentId(eClass, e.studentName || ''));
+    });
+  });
+
+  // also include students known from reports.students for this class
+  Object.values(students || {}).forEach(stu => {
+    const classKey = `${stu.department}-${stu.semester}`;
+    if (classId !== 'all' && normalizeClassKey(classKey) !== normalizedClassId) return;
+    const sid = stu.id || makeStudentId(classKey, stu.studentName || '');
+    studentIds.add(sid);
+  });
+
+  // Build rows: count attended across periodDates
+  const rows = [];
+  studentIds.forEach(id => {
+    // find sample info
+    let studentName = '';
+    let department = '';
+    let semester = '';
+
+    // try to locate sample from daily entries
+    let foundSample = null;
+    for (let i = 0; i < periodDates.length && !foundSample; i++) {
+      const dateStr = periodDates[i];
+      const entries = Array.isArray(daily[dateStr]) ? daily[dateStr] : [];
+      for (let j = 0; j < entries.length; j++) {
+        const e = entries[j];
+        const eId = e.id || makeStudentId(normalizeClassKey(e.classId || (e.department||'')), e.studentName || '');
+        if (eId === id) { foundSample = e; break; }
+      }
+    }
+
+    if (foundSample) {
+      studentName = foundSample.studentName || '';
+      const parts = (normalizeClassKey(foundSample.classId || (foundSample.department || '')) || '').split('-');
+      department = parts[0] || (foundSample.department || '');
+      semester = parts[1] || (foundSample.semester || '');
+    } else if (students[id]) {
+      studentName = students[id].studentName || '';
+      department = students[id].department || '';
+      semester = students[id].semester || '';
+    } else {
+      const idParts = (id || '').split('-');
+      if (idParts.length >= 3) {
+        department = idParts[0] || '';
+        semester = idParts[1] || '';
+        studentName = idParts.slice(2).join(' ').replace(/_/g, ' ');
+      } else {
+        studentName = id.replace(/_/g, ' ');
+      }
+    }
+
+    // count presents
+    let attendedCount = 0;
+    periodDates.forEach(dateStr => {
+      const entries = Array.isArray(daily[dateStr]) ? daily[dateStr] : [];
+      const e = entries.find(en => {
+        const eId = en.id || makeStudentId(normalizeClassKey(en.classId || (en.department||'')), en.studentName || '');
+        return eId === id;
+      });
+      if (e && (e.status || '').toLowerCase() === 'present') attendedCount += 1;
+    });
+
+    const percentage = totalClassDays > 0 ? Math.round((attendedCount / totalClassDays) * 100) : 0;
+    const status = (percentage < 75) ? 'warning' : (percentage < 85 ? 'good' : 'excellent');
+
+    rows.push({
+      studentName,
+      department,
+      semester,
+      totalClasses: totalClassDays,
+      attended: attendedCount,
+      percentage,
+      status
+    });
+  });
+
+  return rows;
+},
+
+
+
+  // Utility: compute stats used by UI cards
+  getAttendanceStats(period = 'daily', classId = undefined) {
+    try {
+      if (period === 'daily') {
+        const classKey = classId || 'all';
+        const rows = this.getFilteredData('daily', classKey);
+        const total = rows.length;
+        const present = rows.filter(r => r.status === 'present').length;
+        const absent = rows.filter(r => r.status === 'absent').length;
+        const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
+        return { total, present, absent, percentage };
+      } else {
+        const rows = this.getPeriodData(period, classId || 'all');
+        const totalStudents = rows.length;
+        const averageAttendance = totalStudents > 0 ? Math.round(rows.reduce((s, r) => s + (r.percentage || 0), 0) / totalStudents) : 0;
+        return {
+          totalStudents,
+          averageAttendance,
+          excellent: rows.filter(r => r.status === 'excellent').length,
+          good: rows.filter(r => r.status === 'good').length,
+          warning: rows.filter(r => r.status === 'warning').length
         };
       }
-      const student = data.students[studentKey];
-      student.attendanceHistory[today] = {
-        status: record.status,
-        subject: record.subject,
-        markedBy: record.markedBy || 'student'
-      };
-      this.updateStudentStats(student);
-    });
-
-    this.saveData(data);
-    return data.daily[today];
-  }
-
-  updateStudentStats(student) {
-    const history = student.attendanceHistory;
-    const totalDays = Object.keys(history).length;
-    const presentDays = Object.values(history).filter(day => day.status === 'present').length;
-
-    student.totalDays = totalDays;
-    student.presentDays = presentDays;
-    student.semesterPercentage = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
-  }
-
-  getDailyAttendance(date = null) {
-    if (typeof window === 'undefined') return [];
-    const data = this.getData();
-    const targetDate = date || new Date().toISOString().split('T')[0];
-    return data.daily[targetDate] || [];
-  }
-
-  getWeeklyAttendance() {
-    if (typeof window === 'undefined') return [];
-    const data = this.getData();
-    const students = data.students;
-    const today = new Date();
-
-    const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - today.getDay() + 1);
-
-    const weekDates = [];
-    for (let i = 0; i < 5; i++) {
-      const date = new Date(weekStart);
-      date.setDate(weekStart.getDate() + i);
-      weekDates.push(date.toISOString().split('T')[0]);
-    }
-
-    const weeklyData = Object.values(students).map(student => {
-      let weekTotalClasses = 0;
-      let weekAttended = 0;
-
-      weekDates.forEach(date => {
-        if (student.attendanceHistory[date]) {
-          weekTotalClasses++;
-          if (student.attendanceHistory[date].status === 'present') {
-            weekAttended++;
-          }
-        }
-      });
-
-      const weekPercentage = weekTotalClasses > 0 ? Math.round((weekAttended / weekTotalClasses) * 100) : 0;
-
-      return {
-        studentName: student.studentName,
-        department: student.department,
-        totalClasses: weekTotalClasses,
-        attended: weekAttended,
-        percentage: weekPercentage,
-        status: this.getStatusFromPercentage(weekPercentage)
-      };
-    });
-
-    return weeklyData.filter(student => student.totalClasses > 0);
-  }
-
-  getMonthlyAttendance() {
-    if (typeof window === 'undefined') return [];
-    const data = this.getData();
-    const students = data.students;
-    const today = new Date();
-
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
-    const monthlyData = Object.values(students).map(student => {
-      let monthTotalClasses = 0;
-      let monthAttended = 0;
-
-      for (let date = new Date(monthStart); date <= monthEnd; date.setDate(date.getDate() + 1)) {
-        const dateStr = date.toISOString().split('T')[0];
-        if (student.attendanceHistory[dateStr]) {
-          monthTotalClasses++;
-          if (student.attendanceHistory[dateStr].status === 'present') {
-            monthAttended++;
-          }
-        }
-      }
-
-      const monthPercentage = monthTotalClasses > 0 ? Math.round((monthAttended / monthTotalClasses) * 100) : 0;
-
-      return {
-        studentName: student.studentName,
-        department: student.department,
-        totalClasses: monthTotalClasses,
-        attended: monthAttended,
-        percentage: monthPercentage,
-        status: this.getStatusFromPercentage(monthPercentage)
-      };
-    });
-
-    return monthlyData.filter(student => student.totalClasses > 0);
-  }
-
-  getSemesterAttendance() {
-    if (typeof window === 'undefined') return [];
-    const data = this.getData();
-    const students = data.students;
-
-    const semesterData = Object.values(students).map(student => ({
-      studentName: student.studentName,
-      department: student.department,
-      totalClasses: student.totalDays,
-      attended: student.presentDays,
-      percentage: student.semesterPercentage,
-      status: this.getStatusFromPercentage(student.semesterPercentage)
-    }));
-
-    return semesterData.filter(student => student.totalClasses > 0);
-  }
-
-  getStatusFromPercentage(percentage) {
-    if (percentage < 80) return 'warning';
-    if (percentage >= 80 && percentage < 90) return 'good';
-    return 'excellent';
-  }
-
-  updateAttendanceStatus(date, studentName, department, newStatus) {
-    if (typeof window === 'undefined') return;
-    const data = this.getData();
-
-    if (data.daily[date]) {
-      const record = data.daily[date].find(r =>
-        r.studentName === studentName && r.department === department
-      );
-      if (record) {
-        record.status = newStatus;
-        record.markedBy = 'teacher';
-      }
-    }
-
-    const studentKey = `${studentName}_${department}`;
-    if (data.students[studentKey] && data.students[studentKey].attendanceHistory[date]) {
-      data.students[studentKey].attendanceHistory[date].status = newStatus;
-      data.students[studentKey].attendanceHistory[date].markedBy = 'teacher';
-      this.updateStudentStats(data.students[studentKey]);
-    }
-
-    this.saveData(data);
-  }
-
-  getAttendanceStats(period) {
-    if (typeof window === 'undefined') return {};
-    let attendanceData = [];
-
-    switch (period) {
-      case 'daily':
-        attendanceData = this.getDailyAttendance();
-        break;
-      case 'weekly':
-        attendanceData = this.getWeeklyAttendance();
-        break;
-      case 'monthly':
-        attendanceData = this.getMonthlyAttendance();
-        break;
-      case 'semester':
-        attendanceData = this.getSemesterAttendance();
-        break;
-      default:
-        attendanceData = this.getDailyAttendance();
-    }
-
-    if (period === 'daily') {
-      const present = attendanceData.filter(r => r.status === 'present').length;
-      const absent = attendanceData.filter(r => r.status === 'absent').length;
-      const total = attendanceData.length;
-
-      return {
-        total,
-        present,
-        absent,
-        percentage: total > 0 ? Math.round((present / total) * 100) : 0
-      };
-    } else {
-      const totalStudents = attendanceData.length;
-      const averageAttendance = attendanceData.length > 0
-        ? Math.round(attendanceData.reduce((sum, record) => sum + record.percentage, 0) / attendanceData.length)
-        : 0;
-      return {
-        totalStudents,
-        averageAttendance,
-        excellent: attendanceData.filter(r => r.status === 'excellent').length,
-        good: attendanceData.filter(r => r.status === 'good').length,
-        warning: attendanceData.filter(r => r.status === 'warning').length
-      };
+    } catch (e) {
+      return {};
     }
   }
+};
 
-  // Clear all data (for testing/reset)
-  clearAllData() {
-    localStorage.removeItem(this.storageKey);
-    this.initializeStorage();
-  }
-
-  // Get department-wise filtered data
-  getFilteredData(period, department) {
-    let data = [];
-    
-    switch (period) {
-      case 'daily':
-        data = this.getDailyAttendance();
-        break;
-      case 'weekly':
-        data = this.getWeeklyAttendance();
-        break;
-      case 'monthly':
-        data = this.getMonthlyAttendance();
-        break;
-      case 'semester':
-        data = this.getSemesterAttendance();
-        break;
-    }
-
-    if (department === 'all') {
-      return data;
-    }
-
-    return data.filter(record => 
-      record.department.toLowerCase().includes(department.toLowerCase())
-    );
-  }
+// expose on window for debugging in browser console
+if (typeof window !== 'undefined') {
+  window.attendanceManager = attendanceManager;
 }
 
-// Export singleton instance
-export const attendanceManager = new AttendanceManager();
+export { attendanceManager };
+export default attendanceManager;

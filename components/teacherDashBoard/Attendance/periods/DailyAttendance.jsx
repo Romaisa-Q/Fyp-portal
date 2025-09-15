@@ -1,43 +1,30 @@
 import { useState } from 'react';
-import { Calendar, CheckCircle, XCircle, Edit2, X } from 'lucide-react';
+import { Calendar, CheckCircle, XCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../ui/card';
-import { Button } from '../../../ui/button';
-import { Badge } from '../../../ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../ui/select';
 
 export default function DailyAttendance({ 
   attendanceData, 
   loading, 
   onEditStatus 
 }) {
-  const [editingRecord, setEditingRecord] = useState(null);
+  const [updatedAttendance, setUpdatedAttendance] = useState({});
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'present':
-      case 'excellent':
-        return 'bg-green-100 text-green-800';
-      case 'absent':
-      case 'warning':
-        return 'bg-red-100 text-red-800';
-      case 'good':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  const handleCheckboxChange = (recordId, isChecked) => {
+    const newStatus = isChecked ? 'present' : 'absent';
+    setUpdatedAttendance((prev) => ({
+      ...prev,
+      [recordId]: newStatus
+    }));
+    onEditStatus(recordId, newStatus);
   };
 
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'excellent':
-        return 'Excellent (90%+)';
-      case 'good':
-        return 'Good (80-89%)';
-      case 'warning':
-        return 'Need Attention (<80%)';
-      default:
-        return status.charAt(0).toUpperCase() + status.slice(1);
-    }
+  const handleMarkAll = (status) => {
+    const newUpdates = {};
+    attendanceData.forEach((record) => {
+      newUpdates[record.id] = status;
+      onEditStatus(record.id, status);
+    });
+    setUpdatedAttendance(newUpdates);
   };
 
   const getStatusIcon = (status) => {
@@ -51,18 +38,36 @@ export default function DailyAttendance({
     }
   };
 
-  const handleEditStatus = (recordId, newStatus) => {
-    onEditStatus(recordId, newStatus);
-    setEditingRecord(null);
-  };
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="w-5 h-5" />
-          Today's Attendance - {new Date().toLocaleDateString()}
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          {/* Title */}
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="w-5 h-5" />
+            Today's Attendance - {new Date().toLocaleDateString()}
+          </CardTitle>
+
+          {/* Buttons */}
+          {attendanceData.length > 0 && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleMarkAll('present')}
+                className="px-3 py-1 border border-gray-300 rounded-md bg-white text-gray-700 text-sm 
+                           hover:bg-gray-100 active:bg-gray-200 transition"
+              >
+                Mark All Present
+              </button>
+              <button
+                onClick={() => handleMarkAll('absent')}
+                className="px-3 py-1 border border-gray-300 rounded-md bg-white text-gray-700 text-sm 
+                           hover:bg-gray-100 active:bg-gray-200 transition"
+              >
+                Mark All Absent
+              </button>
+            </div>
+          )}
+        </div>
       </CardHeader>
       
       <CardContent>
@@ -78,61 +83,38 @@ export default function DailyAttendance({
                 <p className="text-gray-600">No attendance data for today. Click "Sync Daily Data" to fetch from API.</p>
               </div>
             ) : (
-              attendanceData.map((record) => (
-                <div key={record.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {getStatusIcon(record.status)}
-                    <div>
-                      <p className="font-medium">{record.studentName}</p>
-                      <p className="text-sm text-gray-600">{record.department} • {record.subject}</p>
+              attendanceData.map((record) => {
+                const currentStatus = updatedAttendance[record.id] || record.status;
+                return (
+                  <div 
+                    key={record.id} 
+                    className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      {getStatusIcon(currentStatus)}
+                      <div>
+                        <p className="font-medium">{record.studentName}</p>
+                        <p className="text-sm text-gray-600">
+                          {record.department} • {record.subject}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={currentStatus === 'present'}
+                          onChange={(e) =>
+                            handleCheckboxChange(record.id, e.target.checked)
+                          }
+                        />
+                        Mark Present
+                      </label>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-500">
-                      By: {record.markedBy}
-                    </span>
-                    
-                    {editingRecord === record.id ? (
-                      <div className="flex items-center gap-2">
-                        <Select 
-                          value={record.status} 
-                          onValueChange={(value) => handleEditStatus(record.id, value)}
-                        >
-                          <SelectTrigger className="w-24 h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="present">Present</SelectItem>
-                            <SelectItem value="absent">Absent</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={() => setEditingRecord(null)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
-                        <Badge className={getStatusColor(record.status)}>
-                          {getStatusText(record.status)}
-                        </Badge>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={() => setEditingRecord(record.id)}
-                          title="Edit attendance status"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
