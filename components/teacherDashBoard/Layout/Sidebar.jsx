@@ -25,6 +25,7 @@ const sidebarItems = [
   hasSubmenu: true,
   submenu: [
     { key: 'mark', label: 'Mark Attendance' },
+     { key: 'reports', label: 'Attendance Report' },
    
   ]
 },

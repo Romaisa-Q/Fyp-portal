@@ -27,7 +27,7 @@ export default function Main() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [gradingSection, setGradingSection] = useState('grade-assignments');
-  const [attendanceSection, setAttendanceSection] = useState('mark');
+  const [attendanceSection, setAttendanceSection] = useState('marks');
 
   // Close on Escape key
   useEffect(() => {
