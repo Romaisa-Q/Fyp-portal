@@ -6,7 +6,7 @@ import DashboardHeader from './Layout/Header';
 import { useRouter } from 'next/router';
 import Grading from './Grading/Grading';
 import ClassList from './MyClasses/ClassList';
-import Attendance from './Attendance/Attendance';
+// import Attendance from './Attendance/Attendance';
 export default function Main() {
   const router = useRouter();
 
@@ -75,9 +75,9 @@ export default function Main() {
           {activeSection === 'grading' && (
             <Grading defaultSection={gradingSection} />
           )}
-          {activeSection === 'attendance' && (
+          {/* {activeSection === 'attendance' && (
             <Attendance defaultSection={attendanceSection} />
-          )}
+          )} */}
         </main>
       </div>
     </div>
