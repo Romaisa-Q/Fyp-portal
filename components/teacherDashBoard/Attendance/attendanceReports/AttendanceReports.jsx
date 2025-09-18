@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../ui/card.jsx';
 import { Button } from '../../../ui/button.jsx';
 import { Badge } from '../../../ui/badge.jsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../ui/select.jsx';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../ui/tabs.js";
 
 import { toast } from 'sonner';
 import SemesterAttendanceTable from '../SemesterAttendanceTable/index.jsx';
